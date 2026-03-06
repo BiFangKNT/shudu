@@ -28,3 +28,23 @@ pnpm test:e2e
 pnpm build
 pnpm preview
 ```
+
+## Docker 部署
+
+默认对外端口为 `5173`。
+
+```bash
+docker compose up -d --build
+```
+
+访问地址：
+
+```bash
+http://localhost:5173
+```
+
+停止服务：
+
+```bash
+docker compose down
+```

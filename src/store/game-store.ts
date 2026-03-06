@@ -168,7 +168,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         future: [] as Snapshot[],
         maxMistakes: MAX_MISTAKES,
       }
-    : createGame("medium")
+    : createGame("easy")
 
   return {
     ...base,

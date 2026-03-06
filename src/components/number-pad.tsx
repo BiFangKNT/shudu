@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useGameStore } from "@/store/game-store"
 
-export function NumberPad() {
+interface NumberPadProps {
+  compact?: boolean
+}
+
+export function NumberPad({ compact = false }: NumberPadProps) {
   const noteMode = useGameStore((state) => state.noteMode)
   const status = useGameStore((state) => state.status)
   const inputDigit = useGameStore((state) => state.inputDigit)
@@ -15,8 +19,8 @@ export function NumberPad() {
   const disabled = status !== "playing"
 
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-9 gap-2">
+    <div className={cn("space-y-3", compact && "space-y-2")}>
+      <div className={cn("grid grid-cols-9 gap-2", compact && "gap-1.5")}>
         {Array.from({ length: 9 }, (_, index) => index + 1).map((digit) => (
           <Button
             key={digit}
@@ -25,6 +29,7 @@ export function NumberPad() {
             size="icon"
             className={cn(
               "h-11 w-full rounded-xl border-slate-300 text-base font-semibold text-slate-700 shadow-sm sm:h-12",
+              compact && "h-10 rounded-lg text-sm sm:h-10",
               !disabled && "hover:border-emerald-300 hover:bg-emerald-50"
             )}
             onClick={() => inputDigit(digit)}
@@ -34,22 +39,34 @@ export function NumberPad() {
           </Button>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className={cn("grid grid-cols-3 gap-2", compact && "gap-1.5")}>
         <Button
           type="button"
           variant={noteMode ? "default" : "outline"}
-          className="h-11 rounded-xl"
+          className={cn("h-11 rounded-xl", compact && "h-10 rounded-lg px-2 text-sm")}
           onClick={toggleNoteMode}
           disabled={disabled}
         >
           <PenLine className="size-4" />
           {noteMode ? "笔记中" : "笔记"}
         </Button>
-        <Button type="button" variant="outline" className="h-11 rounded-xl" onClick={clearCell} disabled={disabled}>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn("h-11 rounded-xl", compact && "h-10 rounded-lg px-2 text-sm")}
+          onClick={clearCell}
+          disabled={disabled}
+        >
           <Eraser className="size-4" />
           清空
         </Button>
-        <Button type="button" variant="secondary" className="h-11 rounded-xl" onClick={giveHint} disabled={disabled}>
+        <Button
+          type="button"
+          variant="secondary"
+          className={cn("h-11 rounded-xl", compact && "h-10 rounded-lg px-2 text-sm")}
+          onClick={giveHint}
+          disabled={disabled}
+        >
           <Lightbulb className="size-4" />
           提示
         </Button>

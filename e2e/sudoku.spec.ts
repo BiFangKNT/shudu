@@ -9,6 +9,8 @@ test("首页可见并可开始新局", async ({ page }) => {
   const newGameButton = page.getByRole("button", { name: "新局" })
   await newGameButton.click()
 
-  await expect(page.getByText("当前 Seed")).toBeVisible()
-  await expect(page.getByText("快捷键：数字键输入")).toBeVisible()
+  await expect(page.getByText("次级信息")).toBeVisible()
+  await page.getByText("次级信息").click()
+  await expect(page.getByText("Seed:")).toBeVisible()
+  await expect(page.getByText("快捷键：数字输入")).toBeVisible()
 })

@@ -140,7 +140,7 @@ function App() {
   }, [clearCell, giveHint, inputDigit, moveSelection, toggleNoteMode])
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-gradient-to-br from-emerald-50 via-sky-50 to-cyan-100 px-4 py-5 pb-44 text-slate-900 sm:px-6 sm:py-8 sm:pb-48 lg:px-8 lg:py-10 lg:pb-10">
+    <main className="relative min-h-screen overflow-x-hidden bg-linear-to-br from-emerald-50 via-sky-50 to-cyan-100 px-4 py-5 pb-44 text-slate-900 sm:px-6 sm:py-8 sm:pb-48 lg:px-8 lg:py-10 lg:pb-10">
       <div className="pointer-events-none absolute -left-20 top-12 h-72 w-72 rounded-full bg-emerald-200/30 blur-3xl" />
       <div className="pointer-events-none absolute -right-24 bottom-20 h-80 w-80 rounded-full bg-cyan-300/30 blur-3xl" />
 
@@ -219,7 +219,7 @@ function App() {
 
                       <div className="space-y-1 lg:col-span-2">
                         <Label>计时</Label>
-                        <div className="flex h-10 min-w-[7rem] items-center rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700">
+                        <div className="flex h-10 min-w-28 items-center rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700">
                           <Timer className="mr-2 size-4 text-emerald-600" />
                           {formatTime(elapsedSec)}
                         </div>
@@ -227,7 +227,7 @@ function App() {
 
                       <div className="space-y-1 lg:col-span-2">
                         <Label>错误</Label>
-                        <div className="flex h-10 min-w-[7rem] items-center rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700">
+                        <div className="flex h-10 min-w-28 items-center rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700">
                           {mistakes}/{maxMistakes}
                         </div>
                       </div>
@@ -291,7 +291,7 @@ function App() {
             </div>
 
             {isMainPanelCollapsed && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-emerald-100/90 via-emerald-50/65 to-transparent">
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-emerald-100/90 via-emerald-50/65 to-transparent">
                 <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-emerald-200/80 bg-white/90 px-3 py-1 text-xs font-medium text-emerald-700 shadow-sm">
                   鼠标悬停以展开
                   <ChevronDown className="size-3.5 animate-bounce" />
@@ -304,7 +304,7 @@ function App() {
         </section>
 
         <aside className="relative hidden lg:block">
-          <div className="fixed right-[max(2rem,calc((100vw-80rem)/2))] top-1/2 z-30 w-[22rem] -translate-y-1/2">
+          <div className="fixed right-[max(2rem,calc((100vw-80rem)/2))] top-1/2 z-30 w-88 -translate-y-1/2">
             <Card className="border-emerald-100/80 bg-white/90 shadow-[0_24px_60px_-35px_rgba(15,23,42,0.8)] backdrop-blur">
               <CardHeader className="gap-2">
                 <CardTitle>操作面板</CardTitle>

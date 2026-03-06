@@ -35,7 +35,7 @@ export function SudokuBoard() {
   const boardRows = useMemo(() => board.map((row) => row.slice()), [board])
 
   return (
-    <div className="relative mx-auto w-full max-w-[36rem] rounded-[2rem] border border-slate-200/80 bg-white/80 p-3 shadow-[0_30px_70px_-40px_rgba(15,23,42,0.9)] backdrop-blur-sm sm:p-5">
+    <div className="relative mx-auto w-full max-w-xl rounded-4xl border border-slate-200/80 bg-white/80 p-3 shadow-[0_30px_70px_-40px_rgba(15,23,42,0.9)] backdrop-blur-sm sm:p-5">
       <div className="grid grid-cols-9 overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
         {boardRows.map((rowValues, row) =>
           rowValues.map((value, col) => {

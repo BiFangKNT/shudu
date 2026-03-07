@@ -87,6 +87,20 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!canHoverPanel || isPointerInsideMainPanel || isDifficultySelectOpen) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setIsMainPanelExpanded(false)
+    }, 1000)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [canHoverPanel, isDifficultySelectOpen, isPointerInsideMainPanel])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target?.tagName === "INPUT" || target?.tagName === "TEXTAREA") {
@@ -175,129 +189,136 @@ function App() {
 
             <div
               className={cn(
-                "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+                "grid transition-[grid-template-rows,opacity,transform] duration-300 ease-out",
                 isMainPanelCollapsed ? "pointer-events-none grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
               )}
               aria-hidden={isMainPanelCollapsed}
             >
-              <div className="overflow-hidden">
-                {!isMainPanelCollapsed && (
-                  <CardContent className="space-y-3 pt-0">
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-12">
-                      <div className="space-y-1 lg:col-span-8">
-                        <Label htmlFor="difficulty">难度</Label>
-                        <Select
-                          value={difficulty}
-                          onOpenChange={(open) => {
-                            setIsDifficultySelectOpen(open)
-                            if (open) {
-                              setIsMainPanelExpanded(true)
-                              return
-                            }
-                            if (canHoverPanel && !isPointerInsideMainPanel) {
-                              setIsMainPanelExpanded(false)
-                            }
-                          }}
-                          onValueChange={(value) => {
-                            const next = value as (typeof DIFFICULTY_ORDER)[number]
-                            setDifficulty(next)
-                            newGame(next)
-                          }}
-                        >
-                          <SelectTrigger id="difficulty">
-                            <SelectValue placeholder="选择难度" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {DIFFICULTY_ORDER.map((level) => (
-                              <SelectItem key={level} value={level}>
-                                {DIFFICULTY_TEXT[level]}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+              <div className="min-h-0 overflow-hidden" inert={isMainPanelCollapsed}>
+                <CardContent
+                  className={cn(
+                    "space-y-3 pt-0 transition-[opacity,transform] duration-300 ease-out",
+                    isMainPanelCollapsed ? "-translate-y-2 opacity-0" : "translate-y-0 opacity-100"
+                  )}
+                >
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-12">
+                    <div className="space-y-1 lg:col-span-8">
+                      <Label htmlFor="difficulty">难度</Label>
+                      <Select
+                        value={difficulty}
+                        onOpenChange={(open) => {
+                          setIsDifficultySelectOpen(open)
+                          if (open) {
+                            setIsMainPanelExpanded(true)
+                            return
+                          }
+                          if (canHoverPanel && !isPointerInsideMainPanel) {
+                            setIsMainPanelExpanded(false)
+                          }
+                        }}
+                        onValueChange={(value) => {
+                          const next = value as (typeof DIFFICULTY_ORDER)[number]
+                          setDifficulty(next)
+                          newGame(next)
+                        }}
+                      >
+                        <SelectTrigger id="difficulty">
+                          <SelectValue placeholder="选择难度" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DIFFICULTY_ORDER.map((level) => (
+                            <SelectItem key={level} value={level}>
+                              {DIFFICULTY_TEXT[level]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                      <div className="space-y-1 lg:col-span-2">
-                        <Label>计时</Label>
-                        <div className="flex h-10 min-w-28 items-center rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700">
-                          <Timer className="mr-2 size-4 text-emerald-600" />
-                          {formatTime(elapsedSec)}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1 lg:col-span-2">
-                        <Label>错误</Label>
-                        <div className="flex h-10 min-w-28 items-center rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700">
-                          {mistakes}/{maxMistakes}
-                        </div>
+                    <div className="space-y-1 lg:col-span-2">
+                      <Label>计时</Label>
+                      <div className="flex h-10 min-w-28 items-center rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700">
+                        <Timer className="mr-2 size-4 text-emerald-600" />
+                        {formatTime(elapsedSec)}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      <Button type="button" variant="default" onClick={() => newGame(difficulty)}>
-                        <Sparkles className="size-4" />
-                        新局
-                      </Button>
-                      <Button type="button" variant="outline" onClick={restartGame}>
-                        <RefreshCcw className="size-4" />
-                        重开
-                      </Button>
-                      <Button type="button" variant="outline" onClick={undo} disabled={historySize === 0}>
-                        <RotateCcw className="size-4" />
-                        撤销
-                      </Button>
-                      <Button type="button" variant="outline" onClick={redo} disabled={futureSize === 0}>
-                        <RotateCw className="size-4" />
-                        重做
-                      </Button>
-                    </div>
-
-                    <details className="group rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs text-slate-600">
-                      <summary className="flex cursor-pointer list-none items-center justify-between font-medium text-slate-700">
-                        次级信息
-                        <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
-                      </summary>
-                      <div className="mt-2 space-y-2">
-                        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                          <div>
-                            <p className="text-sm font-medium text-slate-700">冲突高亮</p>
-                            <p className="text-xs text-slate-500">显示行列宫重复</p>
-                          </div>
-                          <Switch checked={conflictHighlight} onCheckedChange={setConflictHighlight} />
-                        </div>
-                        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                          <div>
-                            <p className="text-sm font-medium text-slate-700">自动判错</p>
-                            <p className="text-xs text-slate-500">输入即计错</p>
-                          </div>
-                          <Switch checked={autoCheck} onCheckedChange={setAutoCheck} />
-                        </div>
-                        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                          <div>
-                            <p className="text-sm font-medium text-slate-700">笔记模式</p>
-                            <p className="text-xs text-slate-500">N 快捷切换</p>
-                          </div>
-                          <Badge variant={noteMode ? "default" : "outline"}>{noteMode ? "开启" : "关闭"}</Badge>
-                        </div>
-                        <div className="truncate rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">Seed: {seed}</div>
-                        <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2 py-1.5 text-emerald-800">
-                          快捷键：数字输入，N 笔记，H 提示，方向键移动，Backspace/Delete 清空。
-                        </div>
+                    <div className="space-y-1 lg:col-span-2">
+                      <Label>错误</Label>
+                      <div className="flex h-10 min-w-28 items-center rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-700">
+                        {mistakes}/{maxMistakes}
                       </div>
-                    </details>
-                  </CardContent>
-                )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <Button type="button" variant="default" onClick={() => newGame(difficulty)}>
+                      <Sparkles className="size-4" />
+                      新局
+                    </Button>
+                    <Button type="button" variant="outline" onClick={restartGame}>
+                      <RefreshCcw className="size-4" />
+                      重开
+                    </Button>
+                    <Button type="button" variant="outline" onClick={undo} disabled={historySize === 0}>
+                      <RotateCcw className="size-4" />
+                      撤销
+                    </Button>
+                    <Button type="button" variant="outline" onClick={redo} disabled={futureSize === 0}>
+                      <RotateCw className="size-4" />
+                      重做
+                    </Button>
+                  </div>
+
+                  <details className="group rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs text-slate-600">
+                    <summary className="flex cursor-pointer list-none items-center justify-between font-medium text-slate-700">
+                      次级信息
+                      <ChevronDown className="size-4 transition-transform group-open:rotate-180" />
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">冲突高亮</p>
+                          <p className="text-xs text-slate-500">显示行列宫重复</p>
+                        </div>
+                        <Switch checked={conflictHighlight} onCheckedChange={setConflictHighlight} />
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">自动判错</p>
+                          <p className="text-xs text-slate-500">输入即计错</p>
+                        </div>
+                        <Switch checked={autoCheck} onCheckedChange={setAutoCheck} />
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">笔记模式</p>
+                          <p className="text-xs text-slate-500">N 快捷切换</p>
+                        </div>
+                        <Badge variant={noteMode ? "default" : "outline"}>{noteMode ? "开启" : "关闭"}</Badge>
+                      </div>
+                      <div className="truncate rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">Seed: {seed}</div>
+                      <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2 py-1.5 text-emerald-800">
+                        快捷键：数字输入，N 笔记，H 提示，方向键移动，Backspace/Delete 清空。
+                      </div>
+                    </div>
+                  </details>
+                </CardContent>
               </div>
             </div>
 
-            {isMainPanelCollapsed && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-emerald-100/90 via-emerald-50/65 to-transparent">
-                <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-emerald-200/80 bg-white/90 px-3 py-1 text-xs font-medium text-emerald-700 shadow-sm">
-                  鼠标悬停以展开
-                  <ChevronDown className="size-3.5 animate-bounce" />
-                </div>
+            <div
+              className={cn(
+                "pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-emerald-100/90 via-emerald-50/65 to-transparent transition-[opacity,transform] duration-300 ease-out",
+                isMainPanelCollapsed ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+              )}
+              aria-hidden={!isMainPanelCollapsed}
+            >
+              <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-emerald-200/80 bg-white/90 px-3 py-1 text-xs font-medium text-emerald-700 shadow-sm">
+                鼠标悬停以展开
+                <ChevronDown className="size-3.5 animate-bounce" />
               </div>
-            )}
+            </div>
           </Card>
 
           <SudokuBoard />

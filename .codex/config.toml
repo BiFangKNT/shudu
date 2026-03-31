@@ -1,0 +1,12 @@
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+[windows]
+sandbox = "elevated"
+
+[sandbox_workspace_write]
+network_access = true
+writable_roots = [
+  "C:\\Users\\Administrator\\AppData\\Local\\pnpm",
+  "C:\\Users\\Administrator\\AppData\\Local\\Temp",
+]

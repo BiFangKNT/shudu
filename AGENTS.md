@@ -19,6 +19,7 @@ pnpm test           # 运行 Vitest 单元测试
 pnpm test:coverage  # 生成覆盖率报告
 pnpm test:e2e       # 运行 Playwright E2E
 ```
+- Codex 沙盒中不要直接运行 `pnpm test` / `pnpm test:coverage`；需要时提示用户在本机终端执行并回传结果。
 
 ## Coding Style & Naming Conventions
 - 语言与框架：TypeScript 严格模式、React 函数组件。
@@ -41,6 +42,7 @@ pnpm test:e2e       # 运行 Playwright E2E
 - 建议从 `main` 拉新分支：`feat/<topic>`、`fix/<topic>`，避免在主分支直接开发。
 - 推送前最小检查清单：`pnpm lint && pnpm test`；涉及交互流程再执行 `pnpm test:e2e`。
 - 若改动包含状态结构、算法行为或文案，PR 描述中写清“变更前/变更后”与潜在回归点，便于 reviewer 快速验证。
+- 若 Codex 代为处理改动，测试命令按上面的沙盒限制由用户在本机执行；Codex 仅负责 lint、类型检查和其他不受限验证。
 
 ## Architecture Notes
 - 主要数据流为：`lib/sudoku/*` 负责题目生成与求解，`store/game-store.ts` 负责状态与动作，`components/*` 负责渲染与交互。

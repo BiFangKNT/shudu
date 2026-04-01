@@ -4,6 +4,12 @@ import { getNoteDigits } from "@/lib/sudoku/board"
 import { cn } from "@/lib/utils"
 import { useGameStore, isConflictValue, isWrongValue } from "@/store/game-store"
 
+interface SudokuBoardProps {
+  scale?: number
+}
+
+const BOARD_SCALE_BASELINE = 0.94
+
 function shouldHighlightRelated(
   selected: { row: number; col: number } | null,
   row: number,
@@ -28,34 +34,34 @@ function getNoteGroupClasses(noteCount: number) {
     case 2:
       return {
         container: `${base} grid-cols-2 gap-x-[4cqw] px-[7cqw] py-[8cqw]`,
-        item: "flex items-center justify-center text-[clamp(0.95rem,40cqw,1.2rem)]",
+        item: "flex items-center justify-center text-[clamp(0.95rem,40cqw,1.32rem)]",
       }
     case 3:
       return {
         container: `${base} grid-cols-3 gap-x-[2.5cqw] px-[4cqw] py-[8cqw]`,
-        item: "flex items-center justify-center text-[clamp(0.9rem,31cqw,1.08rem)]",
+        item: "flex items-center justify-center text-[clamp(0.9rem,31cqw,1.2rem)]",
       }
     case 4:
       return {
         container: `${base} grid-cols-2 gap-x-[5cqw] gap-y-[2cqw] px-[7cqw] py-[4cqw]`,
-        item: "flex items-center justify-center text-[clamp(0.9rem,35cqw,1.08rem)]",
+        item: "flex items-center justify-center text-[clamp(0.9rem,35cqw,1.2rem)]",
       }
     default:
       if (noteCount <= 6) {
         return {
           container: `${base} grid-cols-3 gap-x-[2.5cqw] gap-y-[1cqw] px-[4cqw] py-[4cqw]`,
-          item: "flex items-center justify-center text-[clamp(0.8rem,28cqw,0.96rem)]",
+          item: "flex items-center justify-center text-[clamp(0.8rem,28cqw,1.05rem)]",
         }
       }
 
       return {
         container: `${base} grid-cols-3 gap-x-[1.5cqw] gap-y-[0.5cqw] px-[3cqw] py-[3cqw]`,
-        item: "flex items-center justify-center text-[clamp(0.74rem,24cqw,0.9rem)]",
+        item: "flex items-center justify-center text-[clamp(0.74rem,24cqw,0.96rem)]",
       }
   }
 }
 
-export function SudokuBoard() {
+export function SudokuBoard({ scale = 1 }: SudokuBoardProps) {
   const board = useGameStore((state) => state.board)
   const notes = useGameStore((state) => state.notes)
   const fixed = useGameStore((state) => state.fixed)
@@ -66,9 +72,17 @@ export function SudokuBoard() {
   const setSelectedCell = useGameStore((state) => state.setSelectedCell)
 
   const boardRows = useMemo(() => board.map((row) => row.slice()), [board])
+  const cellDigitClassName = "text-[clamp(1.1rem,50cqw,2.35rem)] font-semibold"
+  const singleNoteClassName = "text-[clamp(1rem,44cqw,2rem)] font-semibold tabular-nums text-sky-500"
+  const effectiveScale = scale * BOARD_SCALE_BASELINE
+  const boardWidth = `min(100%, ${(86 * effectiveScale).toFixed(2)}vmin)`
+  const boardMaxWidth = `${(50 * effectiveScale).toFixed(2)}rem`
 
   return (
-    <div className="relative mx-auto w-full max-w-xl rounded-4xl border border-slate-200/80 bg-white/80 p-3 shadow-[0_30px_70px_-40px_rgba(15,23,42,0.9)] backdrop-blur-sm sm:p-5">
+    <div
+      className="relative mx-auto rounded-4xl border border-slate-200/80 bg-white/80 p-3 shadow-[0_30px_70px_-40px_rgba(15,23,42,0.9)] backdrop-blur-sm sm:p-5"
+      style={{ width: boardWidth, maxWidth: boardMaxWidth }}
+    >
       <div className="grid grid-cols-9 overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
         {boardRows.map((rowValues, row) =>
           rowValues.map((value, col) => {
@@ -108,7 +122,7 @@ export function SudokuBoard() {
                 {value > 0 ? (
                   <span
                     className={cn(
-                      "text-lg font-semibold sm:text-2xl",
+                      cellDigitClassName,
                       locked ? "text-slate-800" : "text-emerald-700",
                       (conflict || wrong) && "text-rose-700"
                     )}
@@ -116,7 +130,7 @@ export function SudokuBoard() {
                     {value}
                   </span>
                 ) : singleNoteDigit ? (
-                  <span className="text-lg font-semibold tabular-nums text-sky-500 sm:text-2xl">{singleNoteDigit}</span>
+                  <span className={singleNoteClassName}>{singleNoteDigit}</span>
                 ) : noteDigits.length > 1 ? (
                   <div className={noteGroupClasses.container}>
                     {noteDigits.map((digit) => (

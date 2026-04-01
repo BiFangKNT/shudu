@@ -42,7 +42,7 @@ describe("SudokuBoard 笔记显示", () => {
     const firstCell = screen.getAllByRole("button")[0]
     const note = within(firstCell).getByText("3")
 
-    expect(note).toHaveClass("text-lg", "text-sky-500", "sm:text-2xl")
+    expect(note).toHaveClass("font-semibold", "tabular-nums", "text-sky-500", "text-[clamp(1rem,44cqw,2rem)]")
     expect(firstCell.querySelector("div")).toBeNull()
   })
 

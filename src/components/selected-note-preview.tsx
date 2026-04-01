@@ -31,15 +31,15 @@ export function SelectedNotePreview({ compact = false }: SelectedNotePreviewProp
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[0.68rem] font-semibold tracking-[0.14em] text-sky-700">放大候选</p>
-          <p className="mt-1 text-xs text-slate-600">
+          <p className="text-sm font-semibold tracking-wider text-sky-700 sm:text-base">放大候选</p>
+          <p className="mt-1 text-sm text-slate-600">
             {selectedCell ? `第 ${selectedCell.row + 1} 行，第 ${selectedCell.col + 1} 列` : "选中空白格后显示候选"}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
           <span
             className={cn(
-              "rounded-full px-2 py-1 text-[0.68rem] font-semibold shadow-sm ring-1",
+              "rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm ring-1",
               noteMode
                 ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
                 : "bg-white/90 text-slate-500 ring-slate-200"
@@ -48,7 +48,7 @@ export function SelectedNotePreview({ compact = false }: SelectedNotePreviewProp
             {noteMode ? "笔记中" : "笔记"}
           </span>
           {hasEmptySelection && (
-            <span className="rounded-full bg-white/90 px-2 py-1 text-[0.68rem] font-semibold text-sky-700 shadow-sm ring-1 ring-sky-100">
+            <span className="rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-sky-700 shadow-sm ring-1 ring-sky-100">
               {noteDigits.length} 个
             </span>
           )}
@@ -75,7 +75,7 @@ export function SelectedNotePreview({ compact = false }: SelectedNotePreviewProp
               aria-label={`${noteMode ? "切换候选" : "输入数字"} ${digit}`}
               className={cn(
                 "flex aspect-square cursor-pointer items-center justify-center rounded-xl border font-semibold tabular-nums transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 disabled:cursor-not-allowed disabled:opacity-55",
-                compact ? "text-lg" : "text-[1.35rem]",
+                compact ? "text-lg" : "text-2xl",
                 active
                   ? "border-sky-300 bg-sky-100 text-sky-700 shadow-[0_12px_24px_-18px_rgba(2,132,199,0.95)]"
                   : "border-slate-200 bg-slate-50/90 text-slate-500",
@@ -89,7 +89,7 @@ export function SelectedNotePreview({ compact = false }: SelectedNotePreviewProp
         })}
       </div>
 
-      <p className="mt-3 text-xs leading-5 text-slate-600">
+      <p className="mt-3 text-sm leading-6 text-slate-600">
         {selectedCell
           ? hasEmptySelection
             ? noteDigits.length > 0

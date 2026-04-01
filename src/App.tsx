@@ -12,7 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { DIFFICULTY_ORDER } from "@/lib/sudoku/types"
 import { cn } from "@/lib/utils"
-import { formatTime, useGameStore } from "@/store/game-store"
+import {
+  BOARD_SCALE_PERCENT_MAX,
+  BOARD_SCALE_PERCENT_MIN,
+  formatTime,
+  useGameStore,
+} from "@/store/game-store"
 
 const DIFFICULTY_TEXT: Record<(typeof DIFFICULTY_ORDER)[number], string> = {
   easy: "简单",
@@ -27,6 +32,8 @@ const STATUS_TEXT = {
   won: "已完成",
   lost: "失败",
 } as const
+
+const BOARD_SCALE_STEP = 2
 
 function App() {
   const [canHoverPanel, setCanHoverPanel] = useState(false)
@@ -46,6 +53,7 @@ function App() {
   const autoCheck = useGameStore((state) => state.autoCheck)
   const historySize = useGameStore((state) => state.history.length)
   const futureSize = useGameStore((state) => state.future.length)
+  const boardScalePercent = useGameStore((state) => state.boardScalePercent)
 
   const setDifficulty = useGameStore((state) => state.setDifficulty)
   const newGame = useGameStore((state) => state.newGame)
@@ -60,6 +68,7 @@ function App() {
   const setConflictHighlight = useGameStore((state) => state.setConflictHighlight)
   const setAutoCheck = useGameStore((state) => state.setAutoCheck)
   const giveHint = useGameStore((state) => state.giveHint)
+  const setBoardScalePercent = useGameStore((state) => state.setBoardScalePercent)
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -250,6 +259,31 @@ function App() {
                         {mistakes}/{maxMistakes}
                       </div>
                     </div>
+
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-3 sm:col-span-2 lg:col-span-12">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label htmlFor="board-scale" className="text-sm text-emerald-900">
+                          棋盘大小
+                        </Label>
+                        <span className="text-sm font-semibold tabular-nums text-emerald-700">{boardScalePercent}%</span>
+                      </div>
+                      <input
+                        id="board-scale"
+                        type="range"
+                        min={BOARD_SCALE_PERCENT_MIN}
+                        max={BOARD_SCALE_PERCENT_MAX}
+                        step={BOARD_SCALE_STEP}
+                        value={boardScalePercent}
+                        onChange={(event) => setBoardScalePercent(Number(event.target.value))}
+                        className="mt-3 h-2 w-full cursor-pointer accent-emerald-600"
+                        aria-describedby="board-scale-hint"
+                      />
+                      <div className="mt-2 flex items-center justify-between text-xs text-slate-500" id="board-scale-hint">
+                        <span>紧凑</span>
+                        <span>按屏幕自适应</span>
+                        <span>更大</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -322,7 +356,7 @@ function App() {
             </div>
           </Card>
 
-          <SudokuBoard />
+          <SudokuBoard scale={boardScalePercent / 100} />
         </section>
 
         <aside className="relative hidden lg:block">

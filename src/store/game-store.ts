@@ -18,11 +18,16 @@ interface PersistedState {
   autoCheck: boolean
   mistakes: number
   elapsedSec: number
+  boardScalePercent?: number
   seed: string
   status: GameStatus
 }
 
 export type GameStatus = "idle" | "playing" | "won" | "lost"
+
+export const BOARD_SCALE_PERCENT_MIN = 90
+export const BOARD_SCALE_PERCENT_MAX = 110
+export const BOARD_SCALE_PERCENT_DEFAULT = 100
 
 interface GameStore {
   difficulty: Difficulty
@@ -37,6 +42,7 @@ interface GameStore {
   autoCheck: boolean
   mistakes: number
   elapsedSec: number
+  boardScalePercent: number
   seed: string
   status: GameStatus
   history: Snapshot[]
@@ -58,6 +64,7 @@ interface GameStore {
   tick: () => void
   setConflictHighlight: (enabled: boolean) => void
   setAutoCheck: (enabled: boolean) => void
+  setBoardScalePercent: (percent: number) => void
 }
 
 const STORAGE_KEY = "sudoku.v1"
@@ -78,6 +85,7 @@ function createGame(difficulty: Difficulty, seed?: string) {
     autoCheck: true,
     mistakes: 0,
     elapsedSec: 0,
+    boardScalePercent: BOARD_SCALE_PERCENT_DEFAULT,
     seed: puzzle.seed,
     status: "playing" as GameStatus,
     history: [] as Snapshot[],
@@ -115,9 +123,18 @@ function serialize(state: GameStore): PersistedState {
     autoCheck: state.autoCheck,
     mistakes: state.mistakes,
     elapsedSec: state.elapsedSec,
+    boardScalePercent: state.boardScalePercent,
     seed: state.seed,
     status: state.status,
   }
+}
+
+function clampBoardScalePercent(percent: number | undefined): number {
+  if (typeof percent !== "number" || Number.isNaN(percent)) {
+    return BOARD_SCALE_PERCENT_DEFAULT
+  }
+
+  return Math.min(BOARD_SCALE_PERCENT_MAX, Math.max(BOARD_SCALE_PERCENT_MIN, Math.round(percent)))
 }
 
 function saveState(state: GameStore) {
@@ -197,6 +214,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         return {
           ...restored,
           ...progress,
+          boardScalePercent: clampBoardScalePercent(restored.boardScalePercent),
           history: [] as Snapshot[],
           future: [] as Snapshot[],
           maxMistakes: MAX_MISTAKES,
@@ -207,7 +225,10 @@ export const useGameStore = create<GameStore>((set, get) => {
   return {
     ...base,
     newGame: (difficulty) => {
-      const next = createGame(difficulty ?? get().difficulty)
+      const next = {
+        ...createGame(difficulty ?? get().difficulty),
+        boardScalePercent: get().boardScalePercent,
+      }
       set(() => next)
       saveState(get())
     },
@@ -447,6 +468,12 @@ export const useGameStore = create<GameStore>((set, get) => {
         autoCheck: enabled,
         ...getGameProgress(state.board, state.fixed, enabled),
       }))
+      saveState(get())
+    },
+    setBoardScalePercent: (percent) => {
+      set({
+        boardScalePercent: clampBoardScalePercent(percent),
+      })
       saveState(get())
     },
   }

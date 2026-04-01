@@ -112,4 +112,21 @@ describe("game-store", () => {
     useGameStore.getState().inputDigit(1)
     expect(useGameStore.getState().mistakes).toBe(1)
   })
+
+  it("棋盘大小会持久化并在新局后保留", () => {
+    useGameStore.getState().setBoardScalePercent(108)
+
+    expect(useGameStore.getState().boardScalePercent).toBe(108)
+    expect(JSON.parse(window.localStorage.getItem("sudoku.v1") ?? "{}")).toMatchObject({
+      boardScalePercent: 108,
+    })
+
+    useGameStore.getState().newGame("medium")
+
+    expect(useGameStore.getState().boardScalePercent).toBe(108)
+    expect(JSON.parse(window.localStorage.getItem("sudoku.v1") ?? "{}")).toMatchObject({
+      boardScalePercent: 108,
+      difficulty: "medium",
+    })
+  })
 })

@@ -1,8 +1,8 @@
 import { create } from "zustand"
 
-import { boardEquals, cloneBoard, cloneNotesGrid, createNotesGrid, isBoardComplete } from "@/lib/sudoku/board"
+import { cloneBoard, cloneNotesGrid, createNotesGrid, isBoardComplete } from "@/lib/sudoku/board"
 import { buildFixedGrid, generatePuzzle, listEmptyCells } from "@/lib/sudoku/generator"
-import { cellHasConflict } from "@/lib/sudoku/validator"
+import { cellHasConflict, isValidBoard } from "@/lib/sudoku/validator"
 import type { Board, CellPosition, Difficulty, Snapshot } from "@/lib/sudoku/types"
 
 interface PersistedState {
@@ -90,7 +90,6 @@ function makeSnapshot(state: GameStore): Snapshot {
   return {
     board: cloneBoard(state.board),
     notes: cloneNotesGrid(state.notes),
-    mistakes: state.mistakes,
   }
 }
 
@@ -147,27 +146,62 @@ function loadState(): PersistedState | null {
   }
 }
 
-function evaluateStatus(board: Board, solution: Board, mistakes: number): GameStatus {
+function countMistakes(board: Board, fixed: boolean[][], autoCheck: boolean): number {
+  if (!autoCheck) {
+    return 0
+  }
+
+  let mistakes = 0
+
+  for (let row = 0; row < 9; row += 1) {
+    for (let col = 0; col < 9; col += 1) {
+      if (fixed[row][col]) {
+        continue
+      }
+
+      if (cellHasConflict(board, row, col)) {
+        mistakes += 1
+      }
+    }
+  }
+
+  return mistakes
+}
+
+function evaluateStatus(board: Board, mistakes: number): GameStatus {
   if (mistakes >= MAX_MISTAKES) {
     return "lost"
   }
 
-  if (isBoardComplete(board) && boardEquals(board, solution)) {
+  if (isBoardComplete(board) && isValidBoard(board)) {
     return "won"
   }
 
   return "playing"
 }
 
+function getGameProgress(board: Board, fixed: boolean[][], autoCheck: boolean): Pick<GameStore, "mistakes" | "status"> {
+  const mistakes = countMistakes(board, fixed, autoCheck)
+  return {
+    mistakes,
+    status: evaluateStatus(board, mistakes),
+  }
+}
+
 export const useGameStore = create<GameStore>((set, get) => {
   const restored = loadState()
   const base = restored
-    ? {
-        ...restored,
-        history: [] as Snapshot[],
-        future: [] as Snapshot[],
-        maxMistakes: MAX_MISTAKES,
-      }
+    ? (() => {
+        const progress = getGameProgress(restored.board, restored.fixed, restored.autoCheck)
+
+        return {
+          ...restored,
+          ...progress,
+          history: [] as Snapshot[],
+          future: [] as Snapshot[],
+          maxMistakes: MAX_MISTAKES,
+        }
+      })()
     : createGame("easy")
 
   return {
@@ -185,9 +219,8 @@ export const useGameStore = create<GameStore>((set, get) => {
           notes: createNotesGrid(),
           selectedCell: listEmptyCells(nextBoard)[0] ?? null,
           noteMode: false,
-          mistakes: 0,
           elapsedSec: 0,
-          status: "playing" as GameStatus,
+          ...getGameProgress(nextBoard, state.fixed, state.autoCheck),
           history: [] as Snapshot[],
           future: [] as Snapshot[],
         }
@@ -217,7 +250,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
     inputDigit: (digit) => {
       const state = get()
-      if (state.status !== "playing" || !state.selectedCell) {
+      if (state.status === "won" || !state.selectedCell) {
         return
       }
 
@@ -244,15 +277,12 @@ export const useGameStore = create<GameStore>((set, get) => {
         board[row][col] = digit
         notes[row][col] = Array.from({ length: 9 }, () => false)
 
-        const incorrect = current.autoCheck && digit !== current.solution[row][col]
-        const mistakes = incorrect ? current.mistakes + 1 : current.mistakes
-        const status = evaluateStatus(board, current.solution, mistakes)
+        const progress = getGameProgress(board, current.fixed, current.autoCheck)
 
         return {
           board,
           notes,
-          mistakes,
-          status,
+          ...progress,
           history,
           future,
         }
@@ -261,7 +291,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
     clearCell: () => {
       const state = get()
-      if (state.status !== "playing" || !state.selectedCell) {
+      if (state.status === "won" || !state.selectedCell) {
         return
       }
 
@@ -281,9 +311,9 @@ export const useGameStore = create<GameStore>((set, get) => {
         return {
           board,
           notes,
+          ...getGameProgress(board, current.fixed, current.autoCheck),
           history,
           future,
-          status: evaluateStatus(board, current.solution, current.mistakes),
         }
       })
       saveState(get())
@@ -298,7 +328,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
     toggleNoteDigit: (digit) => {
       const state = get()
-      if (state.status !== "playing" || !state.selectedCell) {
+      if (state.status === "won" || !state.selectedCell) {
         return
       }
 
@@ -329,12 +359,11 @@ export const useGameStore = create<GameStore>((set, get) => {
         const history = state.history.slice(0, -1)
         const future = [...state.future, makeSnapshot(state)]
 
-        const status = evaluateStatus(previous.board, state.solution, previous.mistakes)
+        const progress = getGameProgress(previous.board, state.fixed, state.autoCheck)
         return {
           board: cloneBoard(previous.board),
           notes: cloneNotesGrid(previous.notes),
-          mistakes: previous.mistakes,
-          status,
+          ...progress,
           history,
           future,
         }
@@ -350,13 +379,12 @@ export const useGameStore = create<GameStore>((set, get) => {
         const next = state.future[state.future.length - 1]
         const future = state.future.slice(0, -1)
         const history = [...state.history, makeSnapshot(state)]
-        const status = evaluateStatus(next.board, state.solution, next.mistakes)
+        const progress = getGameProgress(next.board, state.fixed, state.autoCheck)
 
         return {
           board: cloneBoard(next.board),
           notes: cloneNotesGrid(next.notes),
-          mistakes: next.mistakes,
-          status,
+          ...progress,
           history,
           future,
         }
@@ -365,7 +393,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
     giveHint: () => {
       const state = get()
-      if (state.status !== "playing") {
+      if (state.status === "won") {
         return
       }
 
@@ -387,11 +415,11 @@ export const useGameStore = create<GameStore>((set, get) => {
         board[target.row][target.col] = current.solution[target.row][target.col]
         notes[target.row][target.col] = Array.from({ length: 9 }, () => false)
 
-        const status = evaluateStatus(board, current.solution, current.mistakes)
+        const progress = getGameProgress(board, current.fixed, current.autoCheck)
         return {
           board,
           notes,
-          status,
+          ...progress,
           history,
           future,
           selectedCell: target,
@@ -401,7 +429,7 @@ export const useGameStore = create<GameStore>((set, get) => {
     },
     tick: () => {
       set((state) => {
-        if (state.status !== "playing") {
+        if (state.status === "won" || state.status === "idle") {
           return state
         }
         return {
@@ -415,7 +443,10 @@ export const useGameStore = create<GameStore>((set, get) => {
       saveState(get())
     },
     setAutoCheck: (enabled) => {
-      set({ autoCheck: enabled })
+      set((state) => ({
+        autoCheck: enabled,
+        ...getGameProgress(state.board, state.fixed, enabled),
+      }))
       saveState(get())
     },
   }
@@ -427,12 +458,8 @@ export function formatTime(totalSeconds: number): string {
   return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
 }
 
-export function isWrongValue(board: Board, solution: Board, row: number, col: number): boolean {
-  const value = board[row][col]
-  if (value === 0) {
-    return false
-  }
-  return value !== solution[row][col]
+export function isWrongValue(board: Board, row: number, col: number): boolean {
+  return cellHasConflict(board, row, col)
 }
 
 export function isConflictValue(board: Board, row: number, col: number): boolean {

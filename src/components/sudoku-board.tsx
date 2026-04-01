@@ -60,7 +60,6 @@ export function SudokuBoard() {
   const notes = useGameStore((state) => state.notes)
   const fixed = useGameStore((state) => state.fixed)
   const selectedCell = useGameStore((state) => state.selectedCell)
-  const solution = useGameStore((state) => state.solution)
   const status = useGameStore((state) => state.status)
   const conflictHighlight = useGameStore((state) => state.conflictHighlight)
   const autoCheck = useGameStore((state) => state.autoCheck)
@@ -80,7 +79,7 @@ export function SudokuBoard() {
             const sameBox = shouldHighlightRelated(selectedCell, row, col, true)
             const locked = fixed[row][col]
             const conflict = conflictHighlight && isConflictValue(board, row, col)
-            const wrong = autoCheck && isWrongValue(board, solution, row, col)
+            const wrong = autoCheck && isWrongValue(board, row, col)
             const winning = status === "won"
             const noteGroupClasses = getNoteGroupClasses(noteDigits.length)
 

@@ -31,7 +31,6 @@ export interface DifficultyConfig {
 export interface Snapshot {
   board: Board
   notes: boolean[][][]
-  mistakes: number
 }
 
 export const GRID_SIZE = 9

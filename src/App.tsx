@@ -287,7 +287,7 @@ function App() {
                       <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
                         <div>
                           <p className="text-sm font-medium text-slate-700">自动判错</p>
-                          <p className="text-xs text-slate-500">输入即计错</p>
+                          <p className="text-xs text-slate-500">按当前冲突计错</p>
                         </div>
                         <Switch checked={autoCheck} onCheckedChange={setAutoCheck} />
                       </div>

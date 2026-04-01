@@ -20,7 +20,7 @@ export function SelectedNotePreview({ compact = false }: SelectedNotePreviewProp
   const noteDigits = getNoteDigits(selectedNotes)
   const hasEmptySelection = Boolean(selectedCell && selectedValue === 0)
   const selectedLocked = selectedCell ? fixed[selectedCell.row][selectedCell.col] : false
-  const digitButtonsDisabled = status !== "playing" || !selectedCell || selectedLocked
+  const digitButtonsDisabled = status === "won" || !selectedCell || selectedLocked
 
   return (
     <section

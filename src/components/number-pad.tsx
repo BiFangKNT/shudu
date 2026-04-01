@@ -17,7 +17,7 @@ export function NumberPad({ compact = false, showDigits = true }: NumberPadProps
   const toggleNoteMode = useGameStore((state) => state.toggleNoteMode)
   const giveHint = useGameStore((state) => state.giveHint)
 
-  const disabled = status !== "playing"
+  const disabled = status === "won"
 
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>

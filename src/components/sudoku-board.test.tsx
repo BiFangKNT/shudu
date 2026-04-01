@@ -65,4 +65,28 @@ describe("SudokuBoard 笔记显示", () => {
     expect(within(firstCell).getByText("9")).toBeInTheDocument()
     expect(noteGrid?.querySelectorAll("span")).toHaveLength(3)
   })
+
+  it("合法但不是最终答案的数字不会立即标红", () => {
+    const board = createEmptyBoard()
+    const solution = createEmptyBoard()
+
+    board[0][0] = 1
+    solution[0][0] = 9
+
+    useGameStore.setState({
+      board,
+      solution,
+      autoCheck: true,
+      conflictHighlight: false,
+    })
+
+    render(<SudokuBoard />)
+
+    const firstCell = screen.getAllByRole("button")[0]
+    const digit = within(firstCell).getByText("1")
+
+    expect(digit).toHaveClass("text-emerald-700")
+    expect(digit).not.toHaveClass("text-rose-700")
+    expect(firstCell).not.toHaveClass("text-rose-700")
+  })
 })

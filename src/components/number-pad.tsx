@@ -6,9 +6,10 @@ import { useGameStore } from "@/store/game-store"
 
 interface NumberPadProps {
   compact?: boolean
+  showDigits?: boolean
 }
 
-export function NumberPad({ compact = false }: NumberPadProps) {
+export function NumberPad({ compact = false, showDigits = true }: NumberPadProps) {
   const noteMode = useGameStore((state) => state.noteMode)
   const status = useGameStore((state) => state.status)
   const inputDigit = useGameStore((state) => state.inputDigit)
@@ -20,25 +21,27 @@ export function NumberPad({ compact = false }: NumberPadProps) {
 
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>
-      <div className={cn("grid grid-cols-9 gap-2", compact && "gap-1.5")}>
-        {Array.from({ length: 9 }, (_, index) => index + 1).map((digit) => (
-          <Button
-            key={digit}
-            type="button"
-            variant="outline"
-            size="icon"
-            className={cn(
-              "h-11 w-full rounded-xl border-slate-300 text-base font-semibold text-slate-700 shadow-sm sm:h-12",
-              compact && "h-10 rounded-lg text-sm sm:h-10",
-              !disabled && "hover:border-emerald-300 hover:bg-emerald-50"
-            )}
-            onClick={() => inputDigit(digit)}
-            disabled={disabled}
-          >
-            {digit}
-          </Button>
-        ))}
-      </div>
+      {showDigits && (
+        <div className={cn("grid grid-cols-9 gap-2", compact && "gap-1.5")}>
+          {Array.from({ length: 9 }, (_, index) => index + 1).map((digit) => (
+            <Button
+              key={digit}
+              type="button"
+              variant="outline"
+              size="icon"
+              className={cn(
+                "h-11 w-full rounded-xl border-slate-300 text-base font-semibold text-slate-700 shadow-sm sm:h-12",
+                compact && "h-10 rounded-lg text-sm sm:h-10",
+                !disabled && "hover:border-emerald-300 hover:bg-emerald-50"
+              )}
+              onClick={() => inputDigit(digit)}
+              disabled={disabled}
+            >
+              {digit}
+            </Button>
+          ))}
+        </div>
+      )}
       <div className={cn("grid grid-cols-3 gap-2", compact && "gap-1.5")}>
         <Button
           type="button"

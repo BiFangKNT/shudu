@@ -18,6 +18,15 @@ export function cloneNotesGrid(notes: boolean[][][]): boolean[][][] {
   return notes.map((row) => row.map((cell) => cell.slice()))
 }
 
+export function getNoteDigits(cellNotes: boolean[]): number[] {
+  return cellNotes.reduce<number[]>((digits, active, index) => {
+    if (active) {
+      digits.push(index + 1)
+    }
+    return digits
+  }, [])
+}
+
 export function isBoardComplete(board: Board): boolean {
   return board.every((row) => row.every((value) => value > 0))
 }

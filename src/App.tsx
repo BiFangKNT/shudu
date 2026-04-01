@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { ChevronDown, Keyboard, RefreshCcw, RotateCcw, RotateCw, Sparkles, Timer } from "lucide-react"
 
 import { NumberPad } from "@/components/number-pad"
+import { SelectedNotePreview } from "@/components/selected-note-preview"
 import { SudokuBoard } from "@/components/sudoku-board"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -340,7 +341,8 @@ function App() {
                 >
                   笔记模式：<span className="font-semibold">{noteMode ? "开启" : "关闭"}</span>
                 </div>
-                <NumberPad />
+                <NumberPad showDigits={false} />
+                <SelectedNotePreview />
               </CardContent>
             </Card>
           </div>

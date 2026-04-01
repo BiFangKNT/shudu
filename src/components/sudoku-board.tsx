@@ -1,5 +1,6 @@
 import { useMemo } from "react"
 
+import { getNoteDigits } from "@/lib/sudoku/board"
 import { cn } from "@/lib/utils"
 import { useGameStore, isConflictValue, isWrongValue } from "@/store/game-store"
 
@@ -20,6 +21,39 @@ function shouldHighlightRelated(
 
   return selected.row === row || selected.col === col || sameBox
 }
+function getNoteGroupClasses(noteCount: number) {
+  const base = "grid h-full place-content-center font-semibold leading-none tabular-nums text-sky-600"
+
+  switch (noteCount) {
+    case 2:
+      return {
+        container: `${base} grid-cols-2 gap-x-[4cqw] px-[7cqw] py-[8cqw]`,
+        item: "flex items-center justify-center text-[clamp(0.95rem,40cqw,1.2rem)]",
+      }
+    case 3:
+      return {
+        container: `${base} grid-cols-3 gap-x-[2.5cqw] px-[4cqw] py-[8cqw]`,
+        item: "flex items-center justify-center text-[clamp(0.9rem,31cqw,1.08rem)]",
+      }
+    case 4:
+      return {
+        container: `${base} grid-cols-2 gap-x-[5cqw] gap-y-[2cqw] px-[7cqw] py-[4cqw]`,
+        item: "flex items-center justify-center text-[clamp(0.9rem,35cqw,1.08rem)]",
+      }
+    default:
+      if (noteCount <= 6) {
+        return {
+          container: `${base} grid-cols-3 gap-x-[2.5cqw] gap-y-[1cqw] px-[4cqw] py-[4cqw]`,
+          item: "flex items-center justify-center text-[clamp(0.8rem,28cqw,0.96rem)]",
+        }
+      }
+
+      return {
+        container: `${base} grid-cols-3 gap-x-[1.5cqw] gap-y-[0.5cqw] px-[3cqw] py-[3cqw]`,
+        item: "flex items-center justify-center text-[clamp(0.74rem,24cqw,0.9rem)]",
+      }
+  }
+}
 
 export function SudokuBoard() {
   const board = useGameStore((state) => state.board)
@@ -39,6 +73,8 @@ export function SudokuBoard() {
       <div className="grid grid-cols-9 overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
         {boardRows.map((rowValues, row) =>
           rowValues.map((value, col) => {
+            const noteDigits = getNoteDigits(notes[row][col])
+            const singleNoteDigit = noteDigits.length === 1 ? noteDigits[0] : null
             const selected = selectedCell?.row === row && selectedCell?.col === col
             const related = shouldHighlightRelated(selectedCell, row, col)
             const sameBox = shouldHighlightRelated(selectedCell, row, col, true)
@@ -46,12 +82,14 @@ export function SudokuBoard() {
             const conflict = conflictHighlight && isConflictValue(board, row, col)
             const wrong = autoCheck && isWrongValue(board, solution, row, col)
             const winning = status === "won"
+            const noteGroupClasses = getNoteGroupClasses(noteDigits.length)
 
             return (
               <button
                 key={`${row}-${col}`}
                 type="button"
                 onClick={() => setSelectedCell(row, col)}
+                style={{ containerType: "inline-size" }}
                 className={cn(
                   "relative aspect-square border border-slate-100 text-center transition-colors duration-150 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300",
                   "cursor-pointer",
@@ -78,14 +116,18 @@ export function SudokuBoard() {
                   >
                     {value}
                   </span>
-                ) : (
-                  <div className="grid h-full grid-cols-3 grid-rows-3 p-1 text-[0.55rem] leading-none text-slate-500 sm:text-[0.62rem]">
-                    {Array.from({ length: 9 }, (_, i) => (
-                      <span key={i} className="flex items-center justify-center">
-                        {notes[row][col][i] ? i + 1 : ""}
+                ) : singleNoteDigit ? (
+                  <span className="text-lg font-semibold tabular-nums text-sky-500 sm:text-2xl">{singleNoteDigit}</span>
+                ) : noteDigits.length > 1 ? (
+                  <div className={noteGroupClasses.container}>
+                    {noteDigits.map((digit) => (
+                      <span key={digit} className={noteGroupClasses.item}>
+                        {digit}
                       </span>
                     ))}
                   </div>
+                ) : (
+                  <div className="h-full" />
                 )}
               </button>
             )

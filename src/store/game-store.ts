@@ -1,6 +1,7 @@
 import { create } from "zustand"
 
-import { cloneBoard, cloneNotesGrid, createNotesGrid, isBoardComplete } from "@/lib/sudoku/board"
+import { findNextLogicalStep, type LogicalStep } from "@/lib/sudoku/analyzer"
+import { cloneBoard, cloneNotesGrid, createNotesGrid, getCandidates, isBoardComplete } from "@/lib/sudoku/board"
 import { buildFixedGrid, generatePuzzle, listEmptyCells } from "@/lib/sudoku/generator"
 import { cellHasConflict, isValidBoard } from "@/lib/sudoku/validator"
 import type { Board, CellPosition, Difficulty, Snapshot } from "@/lib/sudoku/types"
@@ -24,10 +25,37 @@ interface PersistedState {
 }
 
 export type GameStatus = "idle" | "playing" | "won" | "lost"
+export interface HintState {
+  title: string
+  message: string
+  helperText: string | null
+  level: number
+  maxLevel: number
+  focusCells: CellPosition[]
+  signature: string | null
+}
+
+type BlockedHintReason =
+  | { kind: "conflict"; focusCells: CellPosition[] }
+  | { kind: "contradiction"; focusCell: CellPosition }
+  | { kind: "stuck" }
 
 export const BOARD_SCALE_PERCENT_MIN = 90
 export const BOARD_SCALE_PERCENT_MAX = 110
 export const BOARD_SCALE_PERCENT_DEFAULT = 100
+const MAX_HINT_LEVEL = 3
+const TECHNIQUE_LABEL: Record<LogicalStep["technique"], string> = {
+  "naked-single": "裸单元",
+  "hidden-single": "隐藏单元",
+  "locked-candidate": "锁定候选",
+  "naked-pair": "裸对",
+}
+const TECHNIQUE_HELPER_TEXT: Record<LogicalStep["technique"], string> = {
+  "naked-single": "裸单元：这个空格现在只剩一个合法数字可填。",
+  "hidden-single": "隐藏单元：某个数字在一行、一列或一宫里只剩一个位置能放。",
+  "locked-candidate": "锁定候选：某宫里的候选被锁在同一行或列，因此能排除这条线上的同候选。",
+  "naked-pair": "裸对：两个格子只剩同一对候选，所以同一区域其他格不能再用这两个数字。",
+}
 
 interface GameStore {
   difficulty: Difficulty
@@ -45,6 +73,7 @@ interface GameStore {
   boardScalePercent: number
   seed: string
   status: GameStatus
+  hint: HintState | null
   history: Snapshot[]
   future: Snapshot[]
   maxMistakes: number
@@ -88,6 +117,7 @@ function createGame(difficulty: Difficulty, seed?: string) {
     boardScalePercent: BOARD_SCALE_PERCENT_DEFAULT,
     seed: puzzle.seed,
     status: "playing" as GameStatus,
+    hint: null as HintState | null,
     history: [] as Snapshot[],
     future: [] as Snapshot[],
     maxMistakes: MAX_MISTAKES,
@@ -205,6 +235,233 @@ function getGameProgress(board: Board, fixed: boolean[][], autoCheck: boolean): 
   }
 }
 
+function clearHintState(): Pick<GameStore, "hint"> {
+  return { hint: null }
+}
+
+function createHintSignature(step: LogicalStep): string {
+  const placements = step.placements
+    .map((placement) => `p:${placement.row}-${placement.col}-${placement.digit}`)
+    .join("|")
+  const eliminations = step.eliminations
+    .map((elimination) => `e:${elimination.row}-${elimination.col}-${elimination.digit}`)
+    .join("|")
+
+  return `${step.technique}::${placements}::${eliminations}`
+}
+
+function formatCellPosition(cell: CellPosition): string {
+  return `第 ${cell.row + 1} 行第 ${cell.col + 1} 列`
+}
+
+function formatCellList(cells: CellPosition[]): string {
+  const labels = cells.slice(0, 3).map((cell) => formatCellPosition(cell))
+
+  if (cells.length <= 3) {
+    return labels.join("、")
+  }
+
+  return `${labels.join("、")} 等 ${cells.length} 个位置`
+}
+
+function getHintFocusCells(step: LogicalStep): CellPosition[] {
+  const cells = step.placements.length > 0 ? step.placements : step.eliminations
+  const unique = new Map<string, CellPosition>()
+
+  for (const cell of cells) {
+    unique.set(`${cell.row}-${cell.col}`, { row: cell.row, col: cell.col })
+  }
+
+  return [...unique.values()]
+}
+
+function getConflictCells(board: Board): CellPosition[] {
+  const cells: CellPosition[] = []
+
+  for (let row = 0; row < 9; row += 1) {
+    for (let col = 0; col < 9; col += 1) {
+      if (cellHasConflict(board, row, col)) {
+        cells.push({ row, col })
+      }
+    }
+  }
+
+  return cells
+}
+
+function findContradictionCell(board: Board): CellPosition | null {
+  for (let row = 0; row < 9; row += 1) {
+    for (let col = 0; col < 9; col += 1) {
+      if (board[row][col] !== 0) {
+        continue
+      }
+
+      if (getCandidates(board, row, col).length === 0) {
+        return { row, col }
+      }
+    }
+  }
+
+  return null
+}
+
+function getBlockedHintReason(board: Board): BlockedHintReason {
+  if (!isValidBoard(board)) {
+    return {
+      kind: "conflict",
+      focusCells: getConflictCells(board),
+    }
+  }
+
+  const contradictionCell = findContradictionCell(board)
+  if (contradictionCell) {
+    return {
+      kind: "contradiction",
+      focusCell: contradictionCell,
+    }
+  }
+
+  return { kind: "stuck" }
+}
+
+function formatEliminationHint(step: LogicalStep): string {
+  const grouped = new Map<string, { row: number; col: number; digits: number[] }>()
+
+  for (const elimination of step.eliminations) {
+    const key = `${elimination.row}-${elimination.col}`
+    const current = grouped.get(key)
+    if (current) {
+      current.digits.push(elimination.digit)
+      continue
+    }
+
+    grouped.set(key, {
+      row: elimination.row,
+      col: elimination.col,
+      digits: [elimination.digit],
+    })
+  }
+
+  const message = [...grouped.values()]
+    .map(({ row, col, digits }) => `${formatCellPosition({ row, col })}去掉候选 ${digits.sort((a, b) => a - b).join("、")}`)
+    .join("；")
+
+  return message ? `${message}。` : ""
+}
+
+function buildHintState(step: LogicalStep, level: number): HintState {
+  const focusCells = level >= 2 ? getHintFocusCells(step) : []
+  const title = `提示 ${level}/${MAX_HINT_LEVEL} · ${TECHNIQUE_LABEL[step.technique]}`
+
+  if (step.placements.length > 0) {
+    const [placement] = step.placements
+
+    if (level === 1) {
+      return {
+        title,
+        message: `这一步可以用${TECHNIQUE_LABEL[step.technique]}。先别急着落子，先判断哪个空格最受限制。`,
+        helperText: TECHNIQUE_HELPER_TEXT[step.technique],
+        level,
+        maxLevel: MAX_HINT_LEVEL,
+        focusCells,
+        signature: createHintSignature(step),
+      }
+    }
+
+    if (level === 2) {
+      return {
+        title,
+        message: `重点看${formatCellList(focusCells)}。它就是这一步的目标位置。`,
+        helperText: TECHNIQUE_HELPER_TEXT[step.technique],
+        level,
+        maxLevel: MAX_HINT_LEVEL,
+        focusCells,
+        signature: createHintSignature(step),
+      }
+    }
+
+    return {
+      title,
+      message: `${formatCellPosition(placement)}可以填 ${placement.digit}。`,
+      helperText: TECHNIQUE_HELPER_TEXT[step.technique],
+      level,
+      maxLevel: MAX_HINT_LEVEL,
+      focusCells,
+      signature: createHintSignature(step),
+    }
+  }
+
+  if (level === 1) {
+    return {
+      title,
+      message: `这一步可以用${TECHNIQUE_LABEL[step.technique]}。先观察哪些候选其实已经可以排除了。`,
+      helperText: TECHNIQUE_HELPER_TEXT[step.technique],
+      level,
+      maxLevel: MAX_HINT_LEVEL,
+      focusCells,
+      signature: createHintSignature(step),
+    }
+  }
+
+  if (level === 2) {
+    return {
+      title,
+      message: `重点看${formatCellList(focusCells)}的候选变化。`,
+      helperText: TECHNIQUE_HELPER_TEXT[step.technique],
+      level,
+      maxLevel: MAX_HINT_LEVEL,
+      focusCells,
+      signature: createHintSignature(step),
+    }
+  }
+
+  return {
+    title,
+    message: formatEliminationHint(step),
+    helperText: TECHNIQUE_HELPER_TEXT[step.technique],
+    level,
+    maxLevel: MAX_HINT_LEVEL,
+    focusCells,
+    signature: createHintSignature(step),
+  }
+}
+
+function buildBlockedHint(reason: BlockedHintReason): HintState {
+  if (reason.kind === "conflict") {
+    return {
+      title: "提示 · 先处理冲突",
+      message: "当前棋盘存在冲突，先把冲突处理掉，再请求提示。",
+      helperText: "冲突说明：同一行、列或九宫格里出现了重复数字。",
+      level: 1,
+      maxLevel: 1,
+      focusCells: reason.focusCells,
+      signature: null,
+    }
+  }
+
+  if (reason.kind === "contradiction") {
+    return {
+      title: "提示 · 先回退错误",
+      message: `${formatCellPosition(reason.focusCell)}已经没有任何合法候选，这通常说明前面某一步填错了。先回退或清空再继续。`,
+      helperText: "矛盾说明：这个空格按当前盘面已经没有任何数字可填。",
+      level: 1,
+      maxLevel: 1,
+      focusCells: [reason.focusCell],
+      signature: null,
+    }
+  }
+
+  return {
+    title: "提示 · 暂无逻辑步",
+    message: "当前盘面暂时没有可用的基础逻辑提示。先自行推演，或补充笔记后再看。",
+    helperText: "这通常表示盘面目前还合法，只是现有提示器暂时找不到下一步基础技巧。",
+    level: 1,
+    maxLevel: 1,
+    focusCells: [],
+    signature: null,
+  }
+}
+
 export const useGameStore = create<GameStore>((set, get) => {
   const restored = loadState()
   const base = restored
@@ -215,6 +472,7 @@ export const useGameStore = create<GameStore>((set, get) => {
           ...restored,
           ...progress,
           boardScalePercent: clampBoardScalePercent(restored.boardScalePercent),
+          hint: null,
           history: [] as Snapshot[],
           future: [] as Snapshot[],
           maxMistakes: MAX_MISTAKES,
@@ -242,6 +500,7 @@ export const useGameStore = create<GameStore>((set, get) => {
           noteMode: false,
           elapsedSec: 0,
           ...getGameProgress(nextBoard, state.fixed, state.autoCheck),
+          ...clearHintState(),
           history: [] as Snapshot[],
           future: [] as Snapshot[],
         }
@@ -304,6 +563,7 @@ export const useGameStore = create<GameStore>((set, get) => {
           board,
           notes,
           ...progress,
+          ...clearHintState(),
           history,
           future,
         }
@@ -333,6 +593,7 @@ export const useGameStore = create<GameStore>((set, get) => {
           board,
           notes,
           ...getGameProgress(board, current.fixed, current.autoCheck),
+          ...clearHintState(),
           history,
           future,
         }
@@ -364,6 +625,7 @@ export const useGameStore = create<GameStore>((set, get) => {
         notes[row][col][digit - 1] = !notes[row][col][digit - 1]
         return {
           notes,
+          ...clearHintState(),
           history,
           future,
         }
@@ -385,6 +647,7 @@ export const useGameStore = create<GameStore>((set, get) => {
           board: cloneBoard(previous.board),
           notes: cloneNotesGrid(previous.notes),
           ...progress,
+          ...clearHintState(),
           history,
           future,
         }
@@ -406,6 +669,7 @@ export const useGameStore = create<GameStore>((set, get) => {
           board: cloneBoard(next.board),
           notes: cloneNotesGrid(next.notes),
           ...progress,
+          ...clearHintState(),
           history,
           future,
         }
@@ -418,32 +682,21 @@ export const useGameStore = create<GameStore>((set, get) => {
         return
       }
 
-      const empties = listEmptyCells(state.board)
-      if (empties.length === 0) {
-        return
-      }
-
-      const target =
-        state.selectedCell && state.board[state.selectedCell.row][state.selectedCell.col] === 0
-          ? state.selectedCell
-          : empties[Math.floor(Math.random() * empties.length)]
-
       set((current) => {
-        const { history, future } = pushHistory(current)
-        const board = cloneBoard(current.board)
-        const notes = cloneNotesGrid(current.notes)
+        const logicalStep = findNextLogicalStep(current.board)
+        if (!logicalStep) {
+          const reason = getBlockedHintReason(current.board)
+          return {
+            hint: buildBlockedHint(reason),
+          }
+        }
 
-        board[target.row][target.col] = current.solution[target.row][target.col]
-        notes[target.row][target.col] = Array.from({ length: 9 }, () => false)
+        const signature = createHintSignature(logicalStep)
+        const nextLevel =
+          current.hint?.signature === signature ? Math.min(current.hint.level + 1, MAX_HINT_LEVEL) : 1
 
-        const progress = getGameProgress(board, current.fixed, current.autoCheck)
         return {
-          board,
-          notes,
-          ...progress,
-          history,
-          future,
-          selectedCell: target,
+          hint: buildHintState(logicalStep, nextLevel),
         }
       })
       saveState(get())

@@ -16,8 +16,10 @@ export function NumberPad({ compact = false, showDigits = true }: NumberPadProps
   const clearCell = useGameStore((state) => state.clearCell)
   const toggleNoteMode = useGameStore((state) => state.toggleNoteMode)
   const giveHint = useGameStore((state) => state.giveHint)
+  const hint = useGameStore((state) => state.hint)
 
   const disabled = status === "won"
+  const hintLabel = hint && hint.level < hint.maxLevel ? "下一层" : "提示"
 
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>
@@ -71,9 +73,27 @@ export function NumberPad({ compact = false, showDigits = true }: NumberPadProps
           disabled={disabled}
         >
           <Lightbulb className="size-4" />
-          提示
+          {hintLabel}
         </Button>
       </div>
+      {!showDigits && hint && (
+        <section className="rounded-2xl border border-amber-200/80 bg-linear-to-br from-amber-50 via-orange-50 to-white px-3 py-3 shadow-[0_18px_45px_-35px_rgba(180,83,9,0.75)]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">{hint.title}</p>
+              <p className="text-sm leading-6 text-amber-800">{hint.message}</p>
+              {hint.helperText && (
+                <p className="pt-1 text-xs leading-5 text-amber-700/90">
+                  术语解释：{hint.helperText}
+                </p>
+              )}
+            </div>
+            <span className="rounded-full border border-amber-200 bg-white/80 px-2.5 py-1 text-xs font-semibold text-amber-700">
+              {hint.level < hint.maxLevel ? "再按一次提示查看下一层" : "已显示最强提示"}
+            </span>
+          </div>
+        </section>
+      )}
     </div>
   )
 }

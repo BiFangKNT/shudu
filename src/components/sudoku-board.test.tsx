@@ -27,6 +27,7 @@ describe("SudokuBoard 笔记显示", () => {
       elapsedSec: 0,
       seed: "test-seed",
       status: "playing",
+      hint: null,
       history: [],
       future: [],
     })
@@ -88,5 +89,25 @@ describe("SudokuBoard 笔记显示", () => {
     expect(digit).toHaveClass("text-emerald-700")
     expect(digit).not.toHaveClass("text-rose-700")
     expect(firstCell).not.toHaveClass("text-rose-700")
+  })
+
+  it("提示层级会高亮目标格", () => {
+    useGameStore.setState({
+      hint: {
+        title: "提示 2/3 · 裸单元",
+        message: "重点看第 1 行第 1 列。",
+        helperText: "裸单元：这个空格现在只剩一个合法数字可填。",
+        level: 2,
+        maxLevel: 3,
+        focusCells: [{ row: 0, col: 0 }],
+        signature: "test-signature",
+      },
+    })
+
+    render(<SudokuBoard />)
+
+    const firstCell = screen.getAllByRole("button")[0]
+
+    expect(firstCell).toHaveClass("bg-amber-100/80", "ring-1", "ring-amber-300")
   })
 })

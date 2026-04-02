@@ -66,12 +66,17 @@ export function SudokuBoard({ scale = 1 }: SudokuBoardProps) {
   const notes = useGameStore((state) => state.notes)
   const fixed = useGameStore((state) => state.fixed)
   const selectedCell = useGameStore((state) => state.selectedCell)
+  const hint = useGameStore((state) => state.hint)
   const status = useGameStore((state) => state.status)
   const conflictHighlight = useGameStore((state) => state.conflictHighlight)
   const autoCheck = useGameStore((state) => state.autoCheck)
   const setSelectedCell = useGameStore((state) => state.setSelectedCell)
 
   const boardRows = useMemo(() => board.map((row) => row.slice()), [board])
+  const hintFocusSet = useMemo(
+    () => new Set((hint?.focusCells ?? []).map((cell) => `${cell.row}-${cell.col}`)),
+    [hint]
+  )
   const cellDigitClassName = "text-[clamp(1.1rem,50cqw,2.35rem)] font-semibold"
   const singleNoteClassName = "text-[clamp(1rem,44cqw,2rem)] font-semibold tabular-nums text-sky-500"
   const effectiveScale = scale * BOARD_SCALE_BASELINE
@@ -91,6 +96,7 @@ export function SudokuBoard({ scale = 1 }: SudokuBoardProps) {
             const selected = selectedCell?.row === row && selectedCell?.col === col
             const related = shouldHighlightRelated(selectedCell, row, col)
             const sameBox = shouldHighlightRelated(selectedCell, row, col, true)
+            const hintFocused = hintFocusSet.has(`${row}-${col}`)
             const locked = fixed[row][col]
             const conflict = conflictHighlight && isConflictValue(board, row, col)
             const wrong = autoCheck && isWrongValue(board, row, col)
@@ -113,6 +119,7 @@ export function SudokuBoard({ scale = 1 }: SudokuBoardProps) {
                   related && "bg-emerald-50/65",
                   sameBox && "bg-emerald-100/45",
                   selected && "bg-emerald-200/60 ring-1 ring-emerald-300",
+                  hintFocused && "bg-amber-100/80 ring-1 ring-amber-300",
                   locked && "bg-slate-100/80",
                   conflict && "bg-rose-100/80 text-rose-700",
                   wrong && "text-rose-700",

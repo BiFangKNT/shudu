@@ -1,7 +1,22 @@
+import { analyzePuzzle } from "@/lib/sudoku/analyzer"
 import { boardEquals, cloneBoard, createEmptyBoard } from "@/lib/sudoku/board"
 import { createRng, generateSeed, randomInt, shuffle } from "@/lib/sudoku/random"
 import { countSolutions, solveSudoku } from "@/lib/sudoku/solver"
-import { DIFFICULTY_CONFIG, DIGITS, type Difficulty, type GeneratorOptions, type Puzzle } from "@/lib/sudoku/types"
+import {
+  DIFFICULTY_CONFIG,
+  type Difficulty,
+  type DifficultyConfig,
+  type GeneratorOptions,
+  type Puzzle,
+} from "@/lib/sudoku/types"
+import type { PuzzleAnalysis } from "@/lib/sudoku/analyzer"
+
+const MAX_GENERATION_ATTEMPTS: Record<Difficulty, number> = {
+  easy: 200,
+  medium: 220,
+  hard: 260,
+  expert: 280,
+}
 
 function generateSolvedBoard(rng: () => number) {
   const empty = createEmptyBoard()
@@ -116,48 +131,94 @@ function normalizePuzzle(puzzle: number[][], solved: number[][]): number[][] {
   return result
 }
 
+function pickTargetEmpty(
+  difficulty: Difficulty,
+  config: DifficultyConfig,
+  rng: () => number,
+  attempt: number,
+  attemptLimit: number
+) {
+  if (difficulty === "easy" && attempt < Math.floor(attemptLimit * 0.8)) {
+    const preferredMax = Math.min(config.maxEmpty, config.minEmpty + 2)
+    return randomInt(config.minEmpty, preferredMax, rng)
+  }
+
+  if (difficulty === "medium" && attempt < Math.floor(attemptLimit * 0.65)) {
+    const preferredMin = Math.max(config.minEmpty, Math.ceil((config.minEmpty + config.maxEmpty) / 2) - 1)
+    return randomInt(preferredMin, config.maxEmpty, rng)
+  }
+
+  if (difficulty === "hard" && attempt < Math.floor(attemptLimit * 0.65)) {
+    const preferredMin = Math.max(config.minEmpty, Math.ceil((config.minEmpty + config.maxEmpty) / 2))
+    return randomInt(preferredMin, config.maxEmpty, rng)
+  }
+
+  if (difficulty === "expert" && attempt < Math.floor(attemptLimit * 0.6)) {
+    const preferredMin = Math.max(config.minEmpty, config.maxEmpty - 2)
+    return randomInt(preferredMin, config.maxEmpty, rng)
+  }
+
+  return randomInt(config.minEmpty, config.maxEmpty, rng)
+}
+
+function getProfilePenalty(difficulty: Difficulty, analysis: PuzzleAnalysis): number {
+  const hiddenSingleCount = analysis.steps.filter((step) => step.technique === "hidden-single").length
+
+  if (difficulty === "easy") {
+    const openingSteps = analysis.steps.slice(0, Math.min(8, analysis.steps.length))
+    const openingPenalty = openingSteps.some((step) => step.technique !== "naked-single") ? 2 : 0
+    const hiddenPenalty = Math.max(0, hiddenSingleCount - 2)
+
+    return openingPenalty + hiddenPenalty
+  }
+
+  return 0
+}
+
 export function generatePuzzle(options: GeneratorOptions): Puzzle {
   const difficulty = options.difficulty
   const config = DIFFICULTY_CONFIG[difficulty]
   const seed = options.seed ?? generateSeed()
   const unique = options.unique ?? true
   const symmetry = options.symmetry ?? "center"
-  const rng = createRng(seed)
+  const attemptLimit = MAX_GENERATION_ATTEMPTS[difficulty]
 
-  const solved = generateSolvedBoard(rng)
-  const puzzle = cloneBoard(solved)
+  for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
+    const attemptSeed = attempt === 0 ? seed : `${seed}:${attempt}`
+    const rng = createRng(attemptSeed)
+    const solved = generateSolvedBoard(rng)
+    const puzzle = cloneBoard(solved)
+    const targetEmpty = pickTargetEmpty(difficulty, config, rng, attempt, attemptLimit)
 
-  const targetEmpty = randomInt(config.minEmpty, config.maxEmpty, rng)
-  removeWithUniqueness(puzzle, targetEmpty, rng, unique, symmetry)
+    removeWithUniqueness(puzzle, targetEmpty, rng, unique, symmetry)
 
-  const normalized = normalizePuzzle(puzzle, solved)
-
-  if (unique && countSolutions(normalized, 2) !== 1) {
-    throw new Error(`生成失败：难度 ${difficulty} 未得到唯一解`) // 理论上极少出现
-  }
-
-  if (boardEquals(normalized, solved)) {
-    const fallback = cloneBoard(solved)
-    const order = shuffle(DIGITS.map((digit) => digit - 1), rng)
-    for (const index of order.slice(0, 8)) {
-      const row = Math.floor(index)
-      const col = index
-      fallback[row][col] = 0
+    const normalized = normalizePuzzle(puzzle, solved)
+    if (boardEquals(normalized, solved)) {
+      continue
     }
-    return {
-      givens: fallback,
-      solution: solved,
-      difficulty,
-      seed,
+
+    if (unique && countSolutions(normalized, 2) !== 1) {
+      continue
+    }
+
+    const analysis = analyzePuzzle(normalized)
+    if (!analysis.solvable || analysis.difficulty === null) {
+      continue
+    }
+
+    const profilePenalty = getProfilePenalty(difficulty, analysis)
+
+    if (analysis.difficulty === difficulty && profilePenalty === 0) {
+      return {
+        givens: normalized,
+        solution: solved,
+        difficulty,
+        seed: attemptSeed,
+      }
     }
   }
 
-  return {
-    givens: normalized,
-    solution: solved,
-    difficulty,
-    seed,
-  }
+  throw new Error(`生成失败：难度 ${difficulty} 未在 ${attemptLimit} 次尝试内命中`)
 }
 
 export function buildFixedGrid(board: number[][]): boolean[][] {

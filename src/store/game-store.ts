@@ -73,7 +73,7 @@ const MAX_MISTAKES = 3
 function createGame(difficulty: Difficulty, seed?: string) {
   const puzzle = generatePuzzle({ difficulty, unique: true, symmetry: "center", seed })
   return {
-    difficulty: puzzle.difficulty,
+    difficulty,
     puzzle: puzzle.givens,
     solution: puzzle.solution,
     board: cloneBoard(puzzle.givens),
